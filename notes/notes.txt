@@ -1,0 +1,19 @@
+10 Jan 2024:
+Trying to read the collada file. Odin has an xml reader, but it seems like it
+just stores all the elements without a tree. Or maybe the tree is stored
+separately... Lets check
+
+---
+
+11 Jan 2024:
+Not sure. I think the first goal is to load in all the positions of the
+different joints. Rest can be handled later.
+Okay, so the whole thing is a nested tree, and I don't think it can be done
+without recursion. So yeah, we'll have to figure out the recursion. Or we can
+figure out the cube display first. Sure, lets do that one. Because otherwise
+we won't know if we're doing correctly or not.
+
+Awesome. The nodes are loading. So we have that all worked out.
+Next we need to do the animation.
+
+---
