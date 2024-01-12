@@ -16,9 +16,11 @@ rig_scene_library_index :: 1106;
 scene_library_index :: 1270;
 
 Node :: struct {
-    position: Vec3,
     name: string,
     depth: int,
+    // the indexes of all the childs
+    childs: [dynamic]int,
+    transforms: [32]Mat4,
 }
 
 Mat4 :: distinct matrix[4,4]f32;
@@ -43,36 +45,64 @@ node_string_to_mat4 :: proc(data: string) -> Mat4 {
     return mat;
 }
 
-node_add_children :: proc(element: xml.Element, doc: ^xml.Document, nodes: ^[dynamic]Node, matrices: ^[dynamic]Mat4, depth: int) {
-    assert(len(matrices) == depth+1);
-    for i in 0..<depth {
-        fmt.printf(" ");
-    }
+node_parse_scene :: proc(element: xml.Element, doc: ^xml.Document, nodes: ^[dynamic]Node, depth: int, parent: int) {
+    own_index := len(nodes);
     node: Node;
     for attr in element.attribs {
         if (attr.key == "name") {
             node.name = attr.val[crop:];
-            fmt.printf(node.name)
+            // fmt.printf(node.name)
         }
     }
-    mat_elem := doc.elements[element.value[0].(u32)]
-    assert(mat_elem.ident == "matrix");
-    mat := node_string_to_mat4(mat_elem.value[0].(string));
-    // node.position = relative_position;
-    fmt.println(node.position);
-    next := matrices[depth]*mat;
-    append(matrices, next);
-    pos := next * [4]f32{0,0,0,1};
-    node.position = Vec3{pos[0],pos[1],pos[2]};
     node.depth = depth;
     append(nodes, node);
+    if (depth > 0) {
+        append(&nodes[parent].childs, own_index);
+    }
     for idx in element.value[1:] {
         child := doc.elements[idx.(u32)];
-        node_add_children(child, doc, nodes, matrices, depth+1);
+        node_parse_scene(child, doc, nodes, depth+1, own_index);
     }
-    pop(matrices);
 }
 
+node_print :: proc(node: Node, nodes: ^[dynamic]Node, depth:int) {
+    for _ in 0..<depth {
+        fmt.printf(" ");
+    }
+    fmt.println(node.name);
+    for child in node.childs {
+        cnode := nodes[child];
+        node_print(cnode, nodes, depth+1);
+    }
+}
+
+// first pass, just add the raw transforms into the node_list
+node_add_animation_data :: proc(element: xml.Element, doc: ^xml.Document, nodes: ^[dynamic]Node) {
+    for value, vi in element.value {
+        anim := doc.elements[value.(u32)];
+        // fmt.println(anim.attribs[0].val);
+        node_i : int
+        found := false
+        for node, i in nodes {
+            current_name := anim.attribs[0].val;
+            if len(current_name) < crop+len(node.name) {
+                continue;
+            }
+            if node.name == anim.attribs[0].val[crop:crop+len(node.name)] {
+                node_i = i;
+                found = true;
+            }
+        }
+        assert(found);
+        source := doc.elements[anim.value[1].(u32)];
+        array := doc.elements[source.value[0].(u32)];
+        rows, _ := strings.split(array.value[0].(string), "\n");
+        assert(len(rows) == 32);
+        for row, i in rows {
+            nodes[node_i].transforms[i] = node_string_to_mat4(row)
+        }
+    }
+}
 
 main :: proc() {
     data, success := os.read_entire_file_from_filename(file_path);
@@ -85,11 +115,12 @@ main :: proc() {
     // }
     scene := doc.elements[rig_scene_library_index];
     root := doc.elements[scene.value[0].(u32)];
+    anims := doc.elements[rig_anim_library_index];
     nodes: [dynamic]Node;
-    matrices: [dynamic]Mat4;
-    append(&matrices, mat4_unit);
-    node_add_children(root, doc, &nodes, &matrices, 0);
-    
+    node_parse_scene(root, doc, &nodes, 0, 0);
+    node_add_animation_data(anims, doc, &nodes);
+
+    /*
         // Define the camera to look into our 3d world
         cubePosition := Vec3{0, 1, 0};
         camera := rl.Camera3D{};
@@ -100,6 +131,7 @@ main :: proc() {
         camera.projection = .PERSPECTIVE;
         rl.InitWindow(1080, 720, "raylib [core] example - basic window")
         for !rl.WindowShouldClose() {
+            if rl.IsKeyPressed(.BACKSPACE) { break; }
             rl.UpdateCamera(&camera, .ORBITAL);
             rl.BeginDrawing()
             rl.ClearBackground(rl.RAYWHITE)
@@ -119,6 +151,7 @@ main :: proc() {
             rl.EndDrawing()
         }
         rl.CloseWindow()
+    */
 }
 
 

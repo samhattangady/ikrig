@@ -17,3 +17,17 @@ Awesome. The nodes are loading. So we have that all worked out.
 Next we need to do the animation.
 
 ---
+
+12 Jan 2024:
+So I guess we have to start figuring out the animations now. Haha. So it seems
+like the whole thing that we did was again replicated in the animations.
+Except the animations don't maintain the tree. So we will have to get the tree
+from the scene, and then the animations from the anim_lib.
+
+So I guess the way we have stored the nodes doesn't make sense. It should also
+encode the tree. And maybe we don't need positions, and we should just be
+saving the transforms instead.
+
+NEXT: We have loaded in the raw transform vals. Next we have to multiply them
+correctly so that they make sense. So we have to traverse down the tree and
+multiply the matrices and store them again.
