@@ -35,6 +35,10 @@ vec3_to_rl :: proc(v: Vec3) -> rl.Vector3 {
     return rl.Vector3{v[0], v[1], v[2]};
 }
 
+float4_to_rl :: proc(v: [4]f32) -> rl.Vector3 {
+    return rl.Vector3{v[0], v[1], v[2]};
+}
+
 node_string_to_mat4 :: proc(data: string) -> Mat4 {
     mat: Mat4;
     vals, _ := strings.split(data, " ");
@@ -104,6 +108,18 @@ node_add_animation_data :: proc(element: xml.Element, doc: ^xml.Document, nodes:
     }
 }
 
+node_transform_animation_data :: proc(node: ^Node, nodes: ^[dynamic]Node, parent: ^Node) {
+    if (node.depth > 0) {
+        for i in 0..<32 {
+            node.transforms[i] = parent.transforms[i] * node.transforms[i];
+        }
+    }
+    for child_index in node.childs {
+        child := &nodes[child_index];
+        node_transform_animation_data(child, nodes, node);
+    }
+}
+
 main :: proc() {
     data, success := os.read_entire_file_from_filename(file_path);
     doc, errs := xml.parse(data);
@@ -119,27 +135,37 @@ main :: proc() {
     nodes: [dynamic]Node;
     node_parse_scene(root, doc, &nodes, 0, 0);
     node_add_animation_data(anims, doc, &nodes);
+    node_transform_animation_data(&nodes[0], &nodes, &nodes[0]);
 
-    /*
-        // Define the camera to look into our 3d world
-        cubePosition := Vec3{0, 1, 0};
         camera := rl.Camera3D{};
-        camera.position = rl.Vector3{ 300.0, 300.0, 300.0 };
-        camera.target = rl.Vector3{0.91047394, 100.06774199, 1.015365};
+        camera.position = rl.Vector3{ 300.0, 300.0, 0.0 };
+        camera.target = rl.Vector3{0, 70, 0};
         camera.up = rl.Vector3{ 0.0, 1.0, 0.0 };
         camera.fovy = 45.0;
         camera.projection = .PERSPECTIVE;
         rl.InitWindow(1080, 720, "raylib [core] example - basic window")
+        frame := 0;
+        index := 0;
         for !rl.WindowShouldClose() {
+            frame += 1; 
+            index = (frame / 60 / 3) % 32;
             if rl.IsKeyPressed(.BACKSPACE) { break; }
             rl.UpdateCamera(&camera, .ORBITAL);
             rl.BeginDrawing()
             rl.ClearBackground(rl.RAYWHITE)
             rl.BeginMode3D(camera);
+                hip_z : f32;
                 for node, i in nodes {
+                    position := node.transforms[index] * [4]f32{0,0,0,1};
+                    if i == 0 {
+                        hip_z = position.z
+                        position.z = 0;
+                    } else {
+                        position.z -= hip_z
+                    }
                     size := 10/(cast(f32)node.depth+1);
-                    rl.DrawCube(vec3_to_rl(node.position), size, size, size, rl.RED);
-                    rl.DrawCubeWires(vec3_to_rl(node.position), size, size, size, rl.MAROON);
+                    rl.DrawCube(float4_to_rl(position), size, size, size, rl.RED);
+                    rl.DrawCubeWires(float4_to_rl(position), size, size, size, rl.MAROON);
                     // if (node.name == "Head") {
                     //     rl.DrawCube(vec3_to_rl(node.position), 20, 20, 20, rl.RED);
                     // }
@@ -151,7 +177,7 @@ main :: proc() {
             rl.EndDrawing()
         }
         rl.CloseWindow()
-    */
+    
 }
 
 
